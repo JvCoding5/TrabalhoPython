@@ -2,6 +2,7 @@ import sqlite3
 import tkinter as tk
 from tkinter import ttk, messagebox
 import hashlib
+from datetime import datetime
 
 class SistemaNotas:
     def __init__(self):
@@ -62,6 +63,44 @@ class SistemaNotas:
         ''')
         
         self.conn.commit()
+    
+    def gerar_matricula(self):
+        """Gera matrícula automática no formato: ANO + SEQUENCIAL (ex: 2025001)"""
+        ano = datetime.now().year
+        
+        # Buscar última matrícula do ano
+        self.cursor.execute('''
+            SELECT matricula FROM alunos 
+            WHERE matricula LIKE ? 
+            ORDER BY matricula DESC LIMIT 1
+        ''', (f'{ano}%',))
+        
+        resultado = self.cursor.fetchone()
+        
+        if resultado:
+            ultima_matricula = resultado[0]
+            sequencial = int(ultima_matricula[4:]) + 1
+        else:
+            sequencial = 1
+        
+        return f"{ano}{sequencial:03d}"
+    
+    def gerar_codigo_professor(self):
+        """Gera código de professor no formato: PROF + SEQUENCIAL (ex: PROF001)"""
+        self.cursor.execute('''
+            SELECT codigo FROM professores 
+            ORDER BY codigo DESC LIMIT 1
+        ''')
+        
+        resultado = self.cursor.fetchone()
+        
+        if resultado:
+            ultimo_codigo = resultado[0]
+            sequencial = int(ultimo_codigo[4:]) + 1
+        else:
+            sequencial = 1
+        
+        return f"PROF{sequencial:03d}"
     
     def criar_usuarios_padrao(self):
         # Criar usuário secretaria padrão
@@ -193,9 +232,11 @@ class InterfacePrincipal:
                                    font=('Arial', 12, 'bold'), bg='#ecf0f1')
         frame_form.pack(fill='x', padx=10, pady=10)
         
-        tk.Label(frame_form, text="Matrícula:", bg='#ecf0f1').grid(row=0, column=0, padx=5, pady=5)
-        entry_mat = tk.Entry(frame_form, width=20)
-        entry_mat.grid(row=0, column=1, padx=5, pady=5)
+        # MATRÍCULA AUTOMÁTICA - apenas exibição
+        tk.Label(frame_form, text="Matrícula:", bg='#ecf0f1', font=('Arial', 10, 'bold')).grid(row=0, column=0, padx=5, pady=5)
+        label_matricula = tk.Label(frame_form, text="(Gerada automaticamente)", 
+                                    bg='#ecf0f1', fg='#7f8c8d', font=('Arial', 10, 'italic'))
+        label_matricula.grid(row=0, column=1, padx=5, pady=5, sticky='w')
         
         tk.Label(frame_form, text="Nome:", bg='#ecf0f1').grid(row=0, column=2, padx=5, pady=5)
         entry_nome = tk.Entry(frame_form, width=30)
@@ -215,6 +256,9 @@ class InterfacePrincipal:
         
         def cadastrar_aluno():
             try:
+                # Gerar matrícula automaticamente
+                matricula = self.sistema.gerar_matricula()
+                
                 # Criar usuário
                 senha_hash = hashlib.md5(entry_pass.get().encode()).hexdigest()
                 self.sistema.cursor.execute('''
@@ -223,16 +267,15 @@ class InterfacePrincipal:
                 ''', (entry_user.get(), senha_hash, 'aluno', entry_nome.get()))
                 usuario_id = self.sistema.cursor.lastrowid
                 
-                # Criar aluno
+                # Criar aluno com matrícula automática
                 self.sistema.cursor.execute('''
                     INSERT INTO alunos (matricula, nome, turma, usuario_id)
                     VALUES (?, ?, ?, ?)
-                ''', (entry_mat.get(), entry_nome.get(), entry_turma.get(), usuario_id))
+                ''', (matricula, entry_nome.get(), entry_turma.get(), usuario_id))
                 
                 self.sistema.conn.commit()
-                messagebox.showinfo("Sucesso", "Aluno cadastrado com sucesso!")
+                messagebox.showinfo("Sucesso", f"Aluno cadastrado!\nMatrícula: {matricula}")
                 atualizar_lista()
-                entry_mat.delete(0, tk.END)
                 entry_nome.delete(0, tk.END)
                 entry_turma.delete(0, tk.END)
                 entry_user.delete(0, tk.END)
@@ -267,7 +310,7 @@ class InterfacePrincipal:
         
         def atualizar_lista():
             tree_alunos.delete(*tree_alunos.get_children())
-            self.sistema.cursor.execute('SELECT id, matricula, nome, turma FROM alunos')
+            self.sistema.cursor.execute('SELECT id, matricula, nome, turma FROM alunos ORDER BY id DESC')
             for row in self.sistema.cursor.fetchall():
                 tree_alunos.insert('', 'end', values=row)
         
@@ -299,9 +342,11 @@ class InterfacePrincipal:
                                         font=('Arial', 12, 'bold'), bg='#ecf0f1')
         frame_form_prof.pack(fill='x', padx=10, pady=10)
         
-        tk.Label(frame_form_prof, text="Código:", bg='#ecf0f1').grid(row=0, column=0, padx=5, pady=5)
-        entry_cod = tk.Entry(frame_form_prof, width=20)
-        entry_cod.grid(row=0, column=1, padx=5, pady=5)
+        # CÓDIGO AUTOMÁTICO - apenas exibição
+        tk.Label(frame_form_prof, text="Código:", bg='#ecf0f1', font=('Arial', 10, 'bold')).grid(row=0, column=0, padx=5, pady=5)
+        label_codigo = tk.Label(frame_form_prof, text="(Gerado automaticamente)", 
+                               bg='#ecf0f1', fg='#7f8c8d', font=('Arial', 10, 'italic'))
+        label_codigo.grid(row=0, column=1, padx=5, pady=5, sticky='w')
         
         tk.Label(frame_form_prof, text="Nome:", bg='#ecf0f1').grid(row=0, column=2, padx=5, pady=5)
         entry_nome_prof = tk.Entry(frame_form_prof, width=30)
@@ -321,6 +366,9 @@ class InterfacePrincipal:
         
         def cadastrar_professor():
             try:
+                # Gerar código automaticamente
+                codigo = self.sistema.gerar_codigo_professor()
+                
                 senha_hash = hashlib.md5(entry_pass_prof.get().encode()).hexdigest()
                 self.sistema.cursor.execute('''
                     INSERT INTO usuarios (usuario, senha, tipo, nome)
@@ -331,12 +379,11 @@ class InterfacePrincipal:
                 self.sistema.cursor.execute('''
                     INSERT INTO professores (codigo, nome, disciplina, usuario_id)
                     VALUES (?, ?, ?, ?)
-                ''', (entry_cod.get(), entry_nome_prof.get(), entry_disc.get(), usuario_id))
+                ''', (codigo, entry_nome_prof.get(), entry_disc.get(), usuario_id))
                 
                 self.sistema.conn.commit()
-                messagebox.showinfo("Sucesso", "Professor cadastrado com sucesso!")
+                messagebox.showinfo("Sucesso", f"Professor cadastrado!\nCódigo: {codigo}")
                 atualizar_lista_prof()
-                entry_cod.delete(0, tk.END)
                 entry_nome_prof.delete(0, tk.END)
                 entry_disc.delete(0, tk.END)
                 entry_user_prof.delete(0, tk.END)
@@ -370,7 +417,7 @@ class InterfacePrincipal:
         
         def atualizar_lista_prof():
             tree_profs.delete(*tree_profs.get_children())
-            self.sistema.cursor.execute('SELECT id, codigo, nome, disciplina FROM professores')
+            self.sistema.cursor.execute('SELECT id, codigo, nome, disciplina FROM professores ORDER BY id DESC')
             for row in self.sistema.cursor.fetchall():
                 tree_profs.insert('', 'end', values=row)
         
