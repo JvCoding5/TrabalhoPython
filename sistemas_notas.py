@@ -1,24 +1,19 @@
-import sqlite3      # Banco de dados para guardar informações
-import tkinter as tk      # Biblioteca para criar janelas/interface gráfica
-from tkinter import ttk, messagebox  # Componentes visuais extras
-import hashlib      # Para criptografar senhas
-from datetime import datetime  # Para trabalhar com datas
-
-
-    """Classe principal que gerencia o banco de dados e a lógica do sistema"""
+import sqlite3
+import tkinter as tk
+from tkinter import ttk, messagebox
+import hashlib
+from datetime import datetime
 
 class SistemaNotas:
-"""Inicializa o sistema criando conexão com banco de dados"""
     def __init__(self):
-        self.conn = sqlite3.connect('sistema_notas.db')  # Conecta ao banco de dados
-        self.cursor = self.conn.cursor()  # Cria um "ponteiro" para executar comandos
-        self.criar_tabelas()  # Cria as tabelas necessárias
-        self.criar_usuarios_padrao()  # Cria usuário padrão
-        self.usuario_logado = None  # Armazena quem está logado
+        self.conn = sqlite3.connect('sistema_notas.db')
+        self.cursor = self.conn.cursor()
+        self.criar_tabelas()
+        self.criar_usuarios_padrao()
+        self.usuario_logado = None
         self.tipo_usuario = None
         
     def criar_tabelas(self):
-"""Cria todas as tabelas necessárias no banco de dados"""
         # Tabela de usuários
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS usuarios (
@@ -88,7 +83,7 @@ class SistemaNotas:
         else:
             sequencial = 1
         
-        return f"{ano}{sequencial:03d}"  # Retorna ano + número com 3 dígitos (ex: 2025001)
+        return f"{ano}{sequencial:03d}"
     
     def gerar_codigo_professor(self):
         """Gera código de professor no formato: PROF + SEQUENCIAL (ex: PROF001)"""
@@ -643,5 +638,4 @@ class InterfacePrincipal:
 # Iniciar aplicação
 if __name__ == "__main__":
     sistema = SistemaNotas()
-
     InterfaceLogin(sistema)
